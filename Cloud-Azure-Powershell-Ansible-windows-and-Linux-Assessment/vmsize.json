@@ -1,0 +1,17 @@
+{
+  "if": {
+    "allOf": [
+      {
+        "field": "type",
+        "equals": "Microsoft.Compute/virtualMachines"
+      },
+      {
+        "field": "Microsoft.Compute/virtualMachines/hardwareProfile.vmSize",
+        "notEquals": "Standard_D2s_v3"
+      }
+    ]
+  },
+  "then": {
+    "effect": "deny"
+  }
+}
