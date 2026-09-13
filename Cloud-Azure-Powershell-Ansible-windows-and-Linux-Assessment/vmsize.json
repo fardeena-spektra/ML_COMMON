@@ -7,7 +7,7 @@
       },
       {
         "field": "Microsoft.Compute/virtualMachines/hardwareProfile.vmSize",
-        "notEquals": "Standard_D2s_v3"
+        "notIn": ["Standard_D2as_v5", "Standard_D2as_v7"]
       }
     ]
   },
