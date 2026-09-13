@@ -260,12 +260,12 @@ try {
 '@
     $parametersContent = $parametersTemplate -replace '{{DEPLOYMENT_ID}}', $DeploymentID
 
-    $deployScriptContent = @'
+    $deployScriptContent = @"
 az deployment group create \
-  --resource-group microland \
+  --resource-group microland-$DeploymentID \
   --template-file ubuntuvm.json \
   --parameters ubuntuparameters.json
-'@
+"@
 
     Set-Content -Path "C:\LabFiles\ArmTemplates\ubuntuvm.json" -Value $armTemplateContent -Encoding Ascii
     Set-Content -Path "C:\LabFiles\ArmTemplates\ubuntuparameters.json" -Value $parametersContent -Encoding Ascii
