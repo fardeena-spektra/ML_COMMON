@@ -28,7 +28,7 @@
 		}
 	},
 	"variables": {
-		"scripturl": "https://raw.githubusercontent.com/fardeena-spektra/ML_COMMON/refs/heads/main/FM-Cloud-Azure-Powershell-Ansible-windows-and-Linux-Assessment/bootv1.ps1",
+		"scripturl": "https://raw.githubusercontent.com/fardeena-spektra/ML_COMMON/refs/heads/main/FM-Cloud-Azure-Powershell-Ansible-windows-and-Linux-Assessment/boot.ps1",
 		"commonscripturl": "https://experienceazure.blob.core.windows.net/templates/cloudlabs-common/cloudlabs-windows-functions.ps1",
 		"location": "[resourceGroup().location]",
 		"LabVMName": "[concat('labvm-',parameters('DeploymentID'))]",
@@ -107,7 +107,7 @@
 					]
 				},
 				"protectedSettings": {
-					"commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File bootv1.ps1', ' -DeploymentID ', parameters('DeploymentID'), ' -trainerUserName ', parameters('trainerUserName'), ' -trainerUserPassword ', parameters('trainerUserPassword'))]"
+					"commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File boot.ps1', ' -DeploymentID ', parameters('DeploymentID'), ' -trainerUserName ', parameters('trainerUserName'), ' -trainerUserPassword ', parameters('trainerUserPassword'))]"
 				}
 			}
 		},
