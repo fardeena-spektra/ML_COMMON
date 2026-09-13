@@ -46,11 +46,6 @@
 			"type": "Microsoft.Compute/virtualMachines",
 			"apiVersion": "2023-03-01",
 			"location": "[variables('location')]",
-			"plan": {
-				"name": "win2019",
-				"publisher": "spektra",
-				"product": "cloudlabs-windows-jumpvm"
-			},
 			"dependsOn": [
 				"[concat('Microsoft.Network/networkInterfaces/', variables('networkInterfaceName'))]"
 			],
@@ -68,9 +63,9 @@
 				},
 				"storageProfile": {
 					"imageReference": {
-						"publisher": "spektra",
-						"offer": "cloudlabs-windows-jumpvm",
-						"sku": "win2019",
+						"publisher": "MicrosoftWindowsServer",
+						"offer": "WindowsServer",
+						"sku": "2019-Datacenter",
 						"version": "latest"
 					},
 					"osDisk": {
