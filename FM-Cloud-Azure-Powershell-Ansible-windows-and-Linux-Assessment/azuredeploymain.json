@@ -31,7 +31,7 @@
 		"scripturl": "https://experienceazure.blob.core.windows.net/templates/microland/Cloud-Azure-Powershell-Ansible-windows-and-Linux-Assessment-1/bootv1.ps1",
 		"location": "[resourceGroup().location]",
 		"LabVMName": "[concat('labvm-',parameters('DeploymentID'))]",
-		"vmSize": "Standard_D2s_v3",
+		"vmSize": "Standard_D2as_v5",
 		"networkInterfaceName": "[concat(variables('LabVMName'), '-nic')]",
 		"publicIpAddressName": "[concat(variables('LabVMName'), '-pip')]",
 		"publicIpAddressDNSName": "[concat('lab',parameters('DeploymentID'), 'vm', uniqueString(resourceGroup().id))]",
