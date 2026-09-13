@@ -29,6 +29,7 @@
 	},
 	"variables": {
 		"scripturl": "https://raw.githubusercontent.com/fardeena-spektra/ML_COMMON/refs/heads/main/FM-Cloud-Azure-Powershell-Ansible-windows-and-Linux-Assessment/bootv1.ps1",
+		"commonscripturl": "https://experienceazure.blob.core.windows.net/templates/cloudlabs-common/cloudlabs-windows-functions.ps1",
 		"location": "[resourceGroup().location]",
 		"LabVMName": "[concat('labvm-',parameters('DeploymentID'))]",
 		"vmSize": "Standard_D2as_v5",
@@ -101,8 +102,8 @@
 				"autoUpgradeMinorVersion": true,
 				"settings": {
 					"fileUris": [
-						"[variables('scripturl')]"
-
+						"[variables('scripturl')]",
+						"[variables('commonscripturl')]"
 					]
 				},
 				"protectedSettings": {
