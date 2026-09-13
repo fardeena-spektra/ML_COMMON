@@ -1,0 +1,9 @@
+{
+  "if": {
+    "field": "location",
+    "notIn": ["centralindia", "japaneast", "southeastasia", "uaenorth", "southindia"]
+  },
+  "then": {
+    "effect": "deny"
+  }
+}
