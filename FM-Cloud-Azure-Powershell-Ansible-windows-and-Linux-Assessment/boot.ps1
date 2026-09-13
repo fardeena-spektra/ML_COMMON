@@ -250,7 +250,7 @@ try {
       "value": "ubuntuvm-{{DEPLOYMENT_ID}}"
     },
     "adminUsername": {
-      "value": "azureadmin"
+      "value": "azureuser"
     },
     "adminPassword": {
       "value": "P@ssw0rd12345!"
