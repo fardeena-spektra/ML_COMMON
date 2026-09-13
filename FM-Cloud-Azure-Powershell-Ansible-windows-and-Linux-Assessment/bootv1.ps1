@@ -24,16 +24,37 @@ Param (
 # (shown in the CloudLabs portal) and completes the tasks manually.
 #
 # Invoked by the ARM CustomScriptExtension:
-#   powershell -ExecutionPolicy Unrestricted -File psscript-01.ps1 `
+#   powershell -ExecutionPolicy Unrestricted -File bootv1.ps1 `
 #     -DeploymentID <id> -ODLID <id> -azureUserName <user> `
 #     -trainerUserName <user> -trainerUserPassword <pass>
 # Idempotent-ish: safe to re-run (seed files are only written if absent).
+#
+# NOTE: requires cloudlabs-windows-functions.ps1 to be present in the
+# same working directory - add it as a second fileUri on the
+# CustomScriptExtension resource in the ARM template alongside this
+# script, e.g.:
+#   "fileUris": [
+#     "[variables('scripturl')]",
+#     "https://experienceazure.blob.core.windows.net/templates/cloudlabs-common/cloudlabs-windows-functions.ps1"
+#   ]
 # =====================================================================
 Start-Transcript -Path C:\WindowsAzure\Logs\CloudLabsCustomScriptExtension.txt -Append
 [Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls"
 
 New-Item -ItemType Directory -Path C:\LabFiles -Force | Out-Null
 New-Item -ItemType Directory -Path C:\LabFiles\ArmTemplates -Force | Out-Null
+
+# ---------------------------------------------------------------------
+# Import the shared CloudLabs function library (same directory as this
+# script, since CSE downloads all fileUris together).
+# ---------------------------------------------------------------------
+$commonScriptPath = Join-Path (Get-Location) "cloudlabs-windows-functions.ps1"
+if (Test-Path $commonScriptPath) {
+    . $commonScriptPath
+    Write-Host "Loaded cloudlabs-windows-functions.ps1."
+} else {
+    Write-Warning "cloudlabs-windows-functions.ps1 not found alongside this script - tooling install steps will be skipped. Add it as a second fileUri on the CustomScriptExtension resource."
+}
 
 # ---------------------------------------------------------------------
 # Write Ubuntu ARM template, parameter file, and deploy.sh directly to
@@ -255,87 +276,98 @@ catch {
 }
 # Deliberately NOT writing azurePassword to disk - candidate gets it from
 # the CloudLabs environment details pane, same place they got this VM's RDP creds.
-@"
+try {
+    @"
 DeploymentID : $DeploymentID
 ODLID        : $ODLID
 AzureUserName: $azureUserName
 TrainerUser  : $trainerUserName
-"@ | Set-Content -Path C:\LabFiles\AzureCreds.txt
-
-# ---------------------------------------------------------------------
-# Tooling - Az PowerShell module, Azure CLI, OpenSSH client (for
-# ssh-keygen / ssh so the candidate can generate keys and reach the
-# Ubuntu VM they deploy).
-# ---------------------------------------------------------------------
-if (-not (Get-Module -ListAvailable -Name Az.Accounts)) {
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force | Out-Null
-    Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-    Install-Module -Name Az -Scope AllUsers -Force -AllowClobber
-}
-
-if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
-    $cliInstaller = "$env:TEMP\AzureCLI.msi"
-    Invoke-WebRequest -Uri "https://aka.ms/installazurecliwindows" -OutFile $cliInstaller
-    Start-Process msiexec.exe -ArgumentList "/I `"$cliInstaller`" /quiet" -Wait
-}
-
-$sshCapability = Get-WindowsCapability -Online -Name "OpenSSH.Client*"
-if ($sshCapability.State -ne "Installed") {
-    Add-WindowsCapability -Online -Name $sshCapability.Name | Out-Null
-}
-
-# ---------------------------------------------------------------------
-# VS Code - silent install with desktop shortcut and context-menu
-# integration, so the candidate has a working editor on first login.
-# ---------------------------------------------------------------------
-try {
-    Write-Host "Installing Visual Studio Code..."
-    $vsCodeInstaller = "$env:TEMP\VSCodeSetup.exe"
-    Invoke-WebRequest -Uri "https://update.code.visualstudio.com/latest/win32-x64-user/stable" -OutFile $vsCodeInstaller
-    Start-Process -FilePath $vsCodeInstaller -ArgumentList "/VERYSILENT /MERGETASKS=!runcode,addcontextmenufiles,addcontextmenufolders,desktopicon" -Wait
-    Write-Host "Visual Studio Code installed successfully."
+"@ | Set-Content -Path C:\LabFiles\AzureCreds.txt -ErrorAction Stop
+    Write-Host "AzureCreds.txt written successfully."
 }
 catch {
-    Write-Warning "Failed to install Visual Studio Code."
+    Write-Warning "Failed to write AzureCreds.txt."
     Write-Warning $_.Exception.Message
 }
 
 # ---------------------------------------------------------------------
-# Git Bash - silent install with desktop icon.
+# Tooling - installed via the shared, tested cloudlabs-common functions
+# (Chocolatey with winget fallback, retries, OS-aware logic) rather
+# than ad-hoc installers, matching the pattern used across other
+# CloudLabs bootstrap scripts.
+#
+#   WindowsServerCommon  - disables IE ESC, installs Chocolatey,
+#                          disables the Windows Firewall, installs
+#                          Edge Chromium AND creates the "Azure Portal"
+#                          desktop shortcut (portal.azure.com) as part
+#                          of its normal behavior.
+#   InstallVSCode        - VS Code via Chocolatey (winget fallback).
+#   InstallGitTools       - Git for Windows (Git Bash) via Chocolatey
+#                          (winget fallback); installer includes the
+#                          desktop icon and "Git Bash Here" shell
+#                          integration by default.
+#   InstallAzCLI          - Azure CLI via Chocolatey (winget fallback).
+#   InstallAzPowerShellModule - Az PowerShell module from PSGallery.
 # ---------------------------------------------------------------------
-try {
-    Write-Host "Installing Git for Windows (Git Bash)..."
-    $gitInstaller = "$env:TEMP\GitSetup.exe"
-    Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/latest/download/Git-64-bit.exe" -OutFile $gitInstaller
-    Start-Process -FilePath $gitInstaller -ArgumentList "/VERYSILENT /NORESTART /NOCANCEL /SP- /COMPONENTS=`"icons,icons\desktopicon,ext,ext\shellhere,assoc,assoc_sh`"" -Wait
-    Write-Host "Git Bash installed successfully."
-}
-catch {
-    Write-Warning "Failed to install Git Bash."
-    Write-Warning $_.Exception.Message
+if (Get-Command WindowsServerCommon -ErrorAction SilentlyContinue) {
+    try {
+        Write-Host "Running WindowsServerCommon (Chocolatey, firewall, Edge + Azure Portal shortcut)..."
+        WindowsServerCommon
+        Write-Host "WindowsServerCommon completed."
+    } catch {
+        Write-Warning "WindowsServerCommon failed: $($_.Exception.Message)"
+    }
+
+    try {
+        Write-Host "Installing Visual Studio Code..."
+        InstallVSCode
+        Write-Host "InstallVSCode completed."
+    } catch {
+        Write-Warning "InstallVSCode failed: $($_.Exception.Message)"
+    }
+
+    try {
+        Write-Host "Installing Git Bash..."
+        InstallGitTools
+        Write-Host "InstallGitTools completed."
+    } catch {
+        Write-Warning "InstallGitTools failed: $($_.Exception.Message)"
+    }
+
+    try {
+        Write-Host "Installing Azure CLI..."
+        InstallAzCLI
+        Write-Host "InstallAzCLI completed."
+    } catch {
+        Write-Warning "InstallAzCLI failed: $($_.Exception.Message)"
+    }
+
+    try {
+        Write-Host "Installing Az PowerShell module..."
+        InstallAzPowerShellModule
+        Write-Host "InstallAzPowerShellModule completed."
+    } catch {
+        Write-Warning "InstallAzPowerShellModule failed: $($_.Exception.Message)"
+    }
+
+    if (Get-Command Get-ChocoInstallReport -ErrorAction SilentlyContinue) {
+        try { Get-ChocoInstallReport | Out-Null } catch { Write-Warning "Get-ChocoInstallReport failed: $($_.Exception.Message)" }
+    }
+} else {
+    Write-Warning "Shared function library not loaded - skipping VS Code / Git Bash / Azure CLI / Az PowerShell / Azure Portal shortcut install."
 }
 
-# ---------------------------------------------------------------------
-# Desktop shortcut - Azure Portal, so the candidate has a one-click
-# way to open portal.azure.com from any browser installed on the VM.
-# ---------------------------------------------------------------------
+# OpenSSH client - not covered by the shared library, install directly if missing.
 try {
-    Write-Host "Creating Azure Portal desktop shortcut..."
-    $desktopPath = [Environment]::GetFolderPath("CommonDesktopDirectory")
-    $shortcutPath = Join-Path $desktopPath "Azure Portal.lnk"
-    $wshShell = New-Object -ComObject WScript.Shell
-    $shortcut = $wshShell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = "$env:SystemRoot\System32\cmd.exe"
-    $shortcut.Arguments = "/c start https://portal.azure.com"
-    $shortcut.WindowStyle = 7
-    $shortcut.IconLocation = "$env:SystemRoot\System32\SHELL32.dll,14"
-    $shortcut.Description = "Open the Azure Portal"
-    $shortcut.Save()
-    Write-Host "Azure Portal desktop shortcut created successfully."
-}
-catch {
-    Write-Warning "Failed to create Azure Portal desktop shortcut."
-    Write-Warning $_.Exception.Message
+    $sshCapability = Get-WindowsCapability -Online -Name "OpenSSH.Client*" -ErrorAction Stop
+    if ($sshCapability.State -ne "Installed") {
+        Add-WindowsCapability -Online -Name $sshCapability.Name -ErrorAction Stop | Out-Null
+        Write-Host "OpenSSH client installed."
+    } else {
+        Write-Host "OpenSSH client already installed."
+    }
+} catch {
+    Write-Warning "OpenSSH client install failed: $($_.Exception.Message)"
 }
 
 # ---------------------------------------------------------------------
@@ -414,6 +446,14 @@ When finished
 Leave all resources deployed under rg-iaas-assessment-<DeploymentID>
 for grading. Do not delete the resource group at the end of the
 assessment.
-'@ | Set-Content -Path "C:\LabFiles\Instructions.txt" -Encoding Ascii
+'@ | Out-String | ForEach-Object {
+    try {
+        Set-Content -Path "C:\LabFiles\Instructions.txt" -Value $_ -Encoding Ascii -ErrorAction Stop
+        Write-Host "Instructions.txt written successfully."
+    } catch {
+        Write-Warning "Failed to write Instructions.txt: $($_.Exception.Message)"
+    }
+}
 
+Write-Host "Bootstrap script reached the end."
 Stop-Transcript
