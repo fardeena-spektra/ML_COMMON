@@ -77,7 +77,7 @@ try {
     },
     "adminUsername": {
       "type": "string",
-      "defaultValue": "azureuser"
+      "defaultValue": "azureadmin"
     },
     "adminPassword": {
       "type": "secureString"
